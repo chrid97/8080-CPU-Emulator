@@ -38,21 +38,22 @@ pub fn main() void {
         .memory = &buffer,
         .cc = ConditionCodes{},
     };
-    emulate8080p(&state);
-    while (false) {
-        // pc += disassemble8080p(&buffer, pc);
-        // print("{d}", .{pc});
+
+    while (state.pc < bytes_read) {
+        pc += emulate8080p(&state);
+        // pc += disassemble8080p(state.memory, pc);
     }
 }
 
 fn unimplementedInstruction(state: *State8080) void {
-    print("Error: Unimplemented instruction \n", .{});
-    // state.pc =- 1;
+    state.pc = state.pc - 1;
+    print("Error at 0x{x}: Unimplemented instruction \n", .{state.memory[state.pc]});
     exit(1);
 }
 
-fn emulate8080p(state: *State8080) void {
-    var opcode = state.memory[state.pc];
+fn emulate8080p(state: *State8080) u8 {
+    const opcode = state.memory[state.pc];
+    const pc = disassemble8080p(state.memory, state.pc);
     state.pc += 1;
 
     switch (opcode) {
@@ -94,8 +95,12 @@ fn emulate8080p(state: *State8080) void {
         0x1e => { unimplementedInstruction(state); },
         0x1f => { unimplementedInstruction(state); },
 
-        0x20 => { unimplementedInstruction(state); },
-        0x21 => { unimplementedInstruction(state); },
+        0x20 => { }, // NOP
+        0x21 => { 
+            state.h = state.memory[state.pc + 2];
+            state.l = state.memory[state.pc + 1];
+            state.pc += 2;
+        },
         0x22 => { unimplementedInstruction(state); },
         0x23 => { unimplementedInstruction(state); },
         0x24 => { unimplementedInstruction(state); },
@@ -116,7 +121,9 @@ fn emulate8080p(state: *State8080) void {
         0x32 => { unimplementedInstruction(state); },
         0x33 => { unimplementedInstruction(state); },
         0x34 => { unimplementedInstruction(state); },
-        0x35 => { unimplementedInstruction(state); },
+        0x35 => { 
+            
+        },
         0x36 => { unimplementedInstruction(state); },
         0x37 => { unimplementedInstruction(state); },
         0x38 => { unimplementedInstruction(state); },
@@ -129,9 +136,9 @@ fn emulate8080p(state: *State8080) void {
         0x3f => { unimplementedInstruction(state); },
 
         0x40 => { unimplementedInstruction(state); },
-        0x41 => { unimplementedInstruction(state); },
-        0x42 => { unimplementedInstruction(state); },
-        0x43 => { unimplementedInstruction(state); },
+        0x41 => { state.b = state.c; }, // MOV B,C
+        0x42 => { state.b = state.d; }, // MOV B,D 
+        0x43 => { state.b = state.e; }, // MOV B,E
         0x44 => { unimplementedInstruction(state); },
         0x45 => { unimplementedInstruction(state); },
         0x46 => { unimplementedInstruction(state); },
@@ -267,7 +274,14 @@ fn emulate8080p(state: *State8080) void {
         0xc0 => { unimplementedInstruction(state); },
         0xc1 => { unimplementedInstruction(state); },
         0xc2 => { unimplementedInstruction(state); },
-        0xc3 => { unimplementedInstruction(state); },
+        0xc3 => { // JMP addr
+            // print("{any} \n", .{state.pc});
+            // state.pc = @as(u16, state.memory[state.pc + 2]) << 8 | state.memory[state.pc + 1]; 
+            // print("{any} \n", .{state.pc});
+            print("{any} \n", .{&state.memory[state.pc + 2]});
+            print("{any} \n", .{&state.memory[state.pc]});
+            //state.pc = state.memory[state.pc + 2];
+        },
         0xc4 => { unimplementedInstruction(state); },
         0xc5 => { unimplementedInstruction(state); },
         0xc6 => { unimplementedInstruction(state); },
@@ -332,9 +346,11 @@ fn emulate8080p(state: *State8080) void {
         0xfe => { unimplementedInstruction(state); },
         0xff => { unimplementedInstruction(state); },
     }
+
+    return pc;
 }
 
-fn disassemble8080p(codebuffer: []const u8, pc: u8) u8 {
+fn disassemble8080p(codebuffer: []const u8, pc: u16) u8 {
     const code = codebuffer[pc];
     var opbytes: u8 = 1;
     print("{x:0>4} ", .{pc});
